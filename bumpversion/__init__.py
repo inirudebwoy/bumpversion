@@ -655,8 +655,9 @@ def main(original_args=None):
         defaults['current_version'] = vcs_info['current_version']
 
     config_filename = bumpversion.config.get_name(known_args)
-    part_configs, files, config, defaults = \
-        bumpversion.config.load(config_filename, known_args, defaults)
+    config = bumpversion.config.get_config()
+    part_configs, files, defaults = \
+        bumpversion.config.load(known_args, config, defaults)
 
     parser2 = argparse.ArgumentParser(prog='bumpversion', add_help=False, parents=[parser1])
     parser2.set_defaults(**defaults)
@@ -809,7 +810,7 @@ def main(original_args=None):
     for f in files:
         f.replace(current_version, new_version, context, args.dry_run)
 
-    bumpversion.config.save(config_filename, config, args)
+    bumpversion.config.save(args, config, config_filename)
 
     if not vcs:
         return
