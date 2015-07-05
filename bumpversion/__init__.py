@@ -794,7 +794,6 @@ def main(original_args=None):
             vcs = None
 
     # make sure files exist and contain version string
-
     logger.info("Asserting files {} contain the version string:".format(", ".join([str(f) for f in files])))
 
     for f in files:
@@ -804,12 +803,7 @@ def main(original_args=None):
     for f in files:
         f.replace(current_version, new_version, context, args.dry_run)
 
-    commit_files = [f.path for f in files]
-
     config_utils.config_update_post(config, args, config_file)
-
-    if config_utils.config_file_exists(config_file):
-        commit_files.append(config_file)
 
     if not vcs:
         return
@@ -823,6 +817,10 @@ def main(original_args=None):
         "Would prepare" if not do_commit else "Preparing",
         vcs.__name__,
     ))
+
+    commit_files = [f.path for f in files]
+    if config_utils.config_file_exists(config_file):
+        commit_files.append(config_file)
 
     for path in commit_files:
         logger.info("{} changes in file '{}' to {}".format(
