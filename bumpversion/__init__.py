@@ -1,18 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
-
-try:
-    from configparser import RawConfigParser, NoOptionError
-except ImportError:
-    from ConfigParser import RawConfigParser, NoOptionError
-
-try:
-    from StringIO import StringIO
-except:
-    from io import StringIO
-
-
 import argparse
 import os
 import re
@@ -27,6 +15,8 @@ from tempfile import NamedTemporaryFile
 
 import sys
 import codecs
+
+import config_utils
 
 if sys.version_info[0] == 2:
     sys.stdout = codecs.getwriter('utf-8')(sys.stdout)
@@ -43,6 +33,8 @@ logger = logging.getLogger("bumpversion.logger")
 logger_list = logging.getLogger("bumpversion.list")
 
 from argparse import _AppendAction
+
+
 class DiscardDefaultIfSpecifiedAppendAction(_AppendAction):
 
     '''
@@ -662,111 +654,7 @@ def main(original_args=None):
     if 'current_version' in vcs_info:
         defaults['current_version'] = vcs_info['current_version']
 
-    config = RawConfigParser('')
-
-    # don't transform keys to lowercase (which would be the default)
-    config.optionxform = lambda option: option
-
-    config.add_section('bumpversion')
-
-    explicit_config = hasattr(known_args, 'config_file')
-
-    if explicit_config:
-        config_file = known_args.config_file
-    elif not os.path.exists('.bumpversion.cfg') and \
-            os.path.exists('setup.cfg'):
-        config_file = 'setup.cfg'
-    else:
-        config_file = '.bumpversion.cfg'
-
-    config_file_exists = os.path.exists(config_file)
-
-    part_configs = {}
-
-    files = []
-
-    if config_file_exists:
-
-        logger.info("Reading config file {}:".format(config_file))
-        logger.info(io.open(config_file, 'rt', encoding='utf-8').read())
-
-        config.readfp(io.open(config_file, 'rt', encoding='utf-8'))
-
-        log_config = StringIO()
-        config.write(log_config)
-
-        if 'files' in dict(config.items("bumpversion")):
-            warnings.warn(
-                "'files =' configuration is will be deprecated, please use [bumpversion:file:...]",
-                PendingDeprecationWarning
-            )
-
-        defaults.update(dict(config.items("bumpversion")))
-
-        for listvaluename in ("serialize",):
-            try:
-                value = config.get("bumpversion", listvaluename)
-                defaults[listvaluename] = list(filter(None, (x.strip() for x in value.splitlines())))
-            except NoOptionError:
-                pass  # no default value then ;)
-
-        for boolvaluename in ("commit", "tag", "dry_run"):
-            try:
-                defaults[boolvaluename] = config.getboolean(
-                    "bumpversion", boolvaluename)
-            except NoOptionError:
-                pass  # no default value then ;)
-
-        for section_name in config.sections():
-
-            section_name_match = re.compile("^bumpversion:(file|part):(.+)").match(section_name)
-
-            if not section_name_match:
-                continue
-
-            section_prefix, section_value = section_name_match.groups()
-
-            section_config = dict(config.items(section_name))
-
-            if section_prefix == "part":
-
-                ThisVersionPartConfiguration = NumericVersionPartConfiguration
-
-                if 'values' in section_config:
-                    section_config['values'] = list(filter(None, (x.strip() for x in section_config['values'].splitlines())))
-                    ThisVersionPartConfiguration = ConfiguredVersionPartConfiguration
-
-                part_configs[section_value] = ThisVersionPartConfiguration(**section_config)
-
-            elif section_prefix == "file":
-
-                filename = section_value
-
-                if 'serialize' in section_config:
-                    section_config['serialize'] = list(filter(None, (x.strip() for x in section_config['serialize'].splitlines())))
-
-                section_config['part_configs'] = part_configs
-
-                if not 'parse' in section_config:
-                    section_config['parse'] = defaults.get("parse", '(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)')
-
-                if not 'serialize' in section_config:
-                    section_config['serialize'] = defaults.get('serialize', [str('{major}.{minor}.{patch}')])
-
-                if not 'search' in section_config:
-                    section_config['search'] = defaults.get("search", '{current_version}')
-
-                if not 'replace' in section_config:
-                    section_config['replace'] = defaults.get("replace", '{new_version}')
-
-                files.append(ConfiguredFile(filename, VersionConfig(**section_config)))
-
-    else:
-        message = "Could not read config file at {}".format(config_file)
-        if explicit_config:
-            raise argparse.ArgumentTypeError(message)
-        else:
-            logger.info(message)
+    part_configs, files, config_file_exists, config_file, config = config_utils.config_pre(known_args, defaults)
 
     parser2 = argparse.ArgumentParser(prog='bumpversion', add_help=False, parents=[parser1])
     parser2.set_defaults(**defaults)
@@ -918,37 +806,7 @@ def main(original_args=None):
 
     commit_files = [f.path for f in files]
 
-    config.set('bumpversion', 'new_version', args.new_version)
-
-    for key, value in config.items('bumpversion'):
-        logger_list.info("{}={}".format(key, value))
-
-    config.remove_option('bumpversion', 'new_version')
-
-    config.set('bumpversion', 'current_version', args.new_version)
-
-    new_config = StringIO()
-
-    try:
-        write_to_config_file = (not args.dry_run) and config_file_exists
-
-        logger.info("{} to config file {}:".format(
-            "Would write" if not write_to_config_file else "Writing",
-            config_file,
-        ))
-
-        config.write(new_config)
-        logger.info(new_config.getvalue())
-
-        if write_to_config_file:
-            with io.open(config_file, 'wb') as f:
-                f.write(new_config.getvalue().encode('utf-8'))
-
-    except UnicodeEncodeError:
-        warnings.warn(
-            "Unable to write UTF-8 to config file, because of an old configparser version. "
-            "Update with `pip install --upgrade configparser`."
-        )
+    config_utils.config_update_post(config, args, config_file_exists, config_file)
 
     if config_file_exists:
         commit_files.append(config_file)
