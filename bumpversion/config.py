@@ -25,23 +25,32 @@ DEFAULT_SEARCH = '{current_version}'
 def exists(path):
     return os.path.exists(path)
 
+def get_parser():
+    config = RawConfigParser('')
+    # don't transform keys to lowercase (which would be the default)
+    config.optionxform = lambda option: option
+    config.add_section('bumpversion')
+    
 
-def save(config, args, config_file):
-    config.set('bumpversion', 'new_version', args.new_version)
+    
+def save(filename, context):
+    config = get_parser()
+    
+    config.set('bumpversion', 'new_version', context.new_version)
 
     for key, value in config.items('bumpversion'):
         bumpversion.logger_list.info("{}={}".format(key, value))
 
     config.remove_option('bumpversion', 'new_version')
 
-    config.set('bumpversion', 'current_version', args.new_version)
+    config.set('bumpversion', 'current_version', context.new_version)
 
     try:
-        write_to_config_file = (not args.dry_run) and exists(config_file)
+        write_to_config_file = (not context.dry_run) and exists(filename)
 
         bumpversion.logger.info("{} to config file {}:".format(
             "Would write" if not write_to_config_file else "Writing",
-            config_file,
+            filename,
         ))
 
         new_config = StringIO()
@@ -49,7 +58,7 @@ def save(config, args, config_file):
         bumpversion.logger.info(new_config.getvalue())
 
         if write_to_config_file:
-            with io.open(config_file, 'wb') as f:
+            with io.open(filename, 'wb') as f:
                 f.write(new_config.getvalue().encode('utf-8'))
 
     except UnicodeEncodeError:
@@ -59,30 +68,34 @@ def save(config, args, config_file):
         )
 
 
-def load(known_args, defaults):
+def get_name(context):
+    explicit_config = hasattr(context, 'config_file')
+
+    if explicit_config:
+        name = context.config_file
+    elif not os.path.exists('.bumpversion.cfg') and \
+            os.path.exists('setup.cfg'):
+        name = 'setup.cfg'
+    else:
+        name = '.bumpversion.cfg'
+    return name
+
+        
+def load(filename, context, defaults):
     config = RawConfigParser('')
     # don't transform keys to lowercase (which would be the default)
     config.optionxform = lambda option: option
     config.add_section('bumpversion')
-    explicit_config = hasattr(known_args, 'config_file')
-
-    if explicit_config:
-        config_file = known_args.config_file
-    elif not os.path.exists('.bumpversion.cfg') and \
-            os.path.exists('setup.cfg'):
-        config_file = 'setup.cfg'
-    else:
-        config_file = '.bumpversion.cfg'
 
     part_configs = {}
     files = []
 
-    if exists(config_file):
+    if exists(filename):
 
-        bumpversion.logger.info("Reading config file {}:".format(config_file))
-        bumpversion.logger.info(io.open(config_file, 'rt', encoding='utf-8').read())
+        bumpversion.logger.info("Reading config file {}:".format(filename))
+        bumpversion.logger.info(io.open(filename, 'rt', encoding='utf-8').read())
 
-        config.readfp(io.open(config_file, 'rt', encoding='utf-8'))
+        config.readfp(io.open(filename, 'rt', encoding='utf-8'))
 
         log_config = StringIO()
         config.write(log_config)
@@ -152,10 +165,10 @@ def load(known_args, defaults):
                                                         bumpversion.VersionConfig(**section_config)))
 
     else:
-        message = "Could not read config file at {}".format(config_file)
-        if explicit_config:
+        message = "Could not read config file at {}".format(filename)
+        if hasattr(context, 'config_file'):
             raise argparse.ArgumentTypeError(message)
         else:
             bumpversion.logger.info(message)
 
-    return part_configs, files, config_file, config, defaults
+    return part_configs, files, config, defaults
