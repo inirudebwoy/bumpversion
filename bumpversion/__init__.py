@@ -654,7 +654,7 @@ def main(original_args=None):
     if 'current_version' in vcs_info:
         defaults['current_version'] = vcs_info['current_version']
 
-    part_configs, files, config_file_exists, config_file, config = config_utils.config_pre(known_args, defaults)
+    part_configs, files, config_file, config, defaults = config_utils.config_pre(known_args, defaults)
 
     parser2 = argparse.ArgumentParser(prog='bumpversion', add_help=False, parents=[parser1])
     parser2.set_defaults(**defaults)
@@ -806,9 +806,9 @@ def main(original_args=None):
 
     commit_files = [f.path for f in files]
 
-    config_utils.config_update_post(config, args, config_file_exists, config_file)
+    config_utils.config_update_post(config, args, config_file)
 
-    if config_file_exists:
+    if config_utils.config_file_exists(config_file):
         commit_files.append(config_file)
 
     if not vcs:
