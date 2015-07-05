@@ -26,7 +26,7 @@ def exists(path):
     return os.path.exists(path)
 
 
-def save(context, config, filename):
+def save(context, config):
     config.set('bumpversion', 'new_version', context.new_version)
 
     for key, value in config.items('bumpversion'):
@@ -35,6 +35,7 @@ def save(context, config, filename):
     config.remove_option('bumpversion', 'new_version')
     config.set('bumpversion', 'current_version', context.new_version)
 
+    filename = get_name(context)
     try:
         write_to_file = (not context.dry_run) and exists(filename)
 
@@ -59,15 +60,16 @@ def save(context, config, filename):
 
 
 def get_name(context):
-    explicit_config = hasattr(context, 'config_file')
-
-    if explicit_config:
+    try:
+        # config_file passed as argument
         name = context.config_file
-    elif not os.path.exists('.bumpversion.cfg') and \
-            os.path.exists('setup.cfg'):
-        name = 'setup.cfg'
-    else:
-        name = '.bumpversion.cfg'
+    except AttributeError:
+        if not os.path.exists('.bumpversion.cfg') and \
+           os.path.exists('setup.cfg'):
+            name = 'setup.cfg'
+        else:
+            name = '.bumpversion.cfg'
+
     return name
 
 
@@ -93,8 +95,6 @@ def load(context, config, defaults):
     bumpversion.logger.info("Reading config file {}:".format(filename))
     bumpversion.logger.info(io.open(filename, 'rt', encoding='utf-8').read())
     config.readfp(io.open(filename, 'rt', encoding='utf-8'))
-    part_configs = {}
-    files = []
 
     if 'files' in dict(config.items("bumpversion")):
         warnings.warn(
@@ -118,6 +118,8 @@ def load(context, config, defaults):
         except NoOptionError:
             pass  # no default value then ;)
 
+    part_configs = {}
+    files_to_bump = []
     for section_name in config.sections():
         section_name_match = re.compile("^bumpversion:(file|part):(.+)").match(section_name)
         if not section_name_match:
@@ -127,7 +129,6 @@ def load(context, config, defaults):
         section_config = dict(config.items(section_name))
 
         if section_prefix == "part":
-
             ThisVersionPartConfiguration = bumpversion.NumericVersionPartConfiguration
 
             if 'values' in section_config:
@@ -137,27 +138,25 @@ def load(context, config, defaults):
             part_configs[section_value] = ThisVersionPartConfiguration(**section_config)
 
         elif section_prefix == "file":
-
-            filename = section_value
-
             if 'serialize' in section_config:
                 section_config['serialize'] = list(filter(None, (x.strip() for x in section_config['serialize'].splitlines())))
 
-            section_config['part_configs'] = part_configs
+            # section_config['part_configs'] = part_configs
 
-            if not 'parse' in section_config:
+            if 'parse' not in section_config:
                 section_config['parse'] = defaults.get("parse", DEFAULT_PARSE)
 
-            if not 'serialize' in section_config:
+            if 'serialize' not in section_config:
                 section_config['serialize'] = defaults.get('serialize', DEFAULT_SERIALIZE)
 
-            if not 'search' in section_config:
+            if 'search' not in section_config:
                 section_config['search'] = defaults.get("search", DEFAULT_SEARCH)
 
-            if not 'replace' in section_config:
+            if 'replace' not in section_config:
                 section_config['replace'] = defaults.get("replace", DEFAULT_REPLACE)
 
-            files.append(bumpversion.ConfiguredFile(filename,
-                                                    bumpversion.VersionConfig(**section_config)))
+            files_to_bump.append(
+                bumpversion.ConfiguredFile(section_value,
+                                           bumpversion.VersionConfig(**section_config)))
 
-    return part_configs, files, defaults
+    return part_configs, files_to_bump, defaults

@@ -654,9 +654,8 @@ def main(original_args=None):
     if 'current_version' in vcs_info:
         defaults['current_version'] = vcs_info['current_version']
 
-    config_filename = bumpversion.config.get_name(known_args)
     config = bumpversion.config.get_config()
-    part_configs, files, defaults = \
+    part_configs, files_to_bump, defaults = \
         bumpversion.config.load(known_args, config, defaults)
 
     parser2 = argparse.ArgumentParser(prog='bumpversion', add_help=False, parents=[parser1])
@@ -785,7 +784,7 @@ def main(original_args=None):
     file_names = file_names or positionals[1:]
 
     for file_name in file_names:
-        files.append(ConfiguredFile(file_name, vc))
+        files_to_bump.append(ConfiguredFile(file_name, vc))
 
     for vcs in VCS:
         if vcs.is_usable():
@@ -800,17 +799,17 @@ def main(original_args=None):
         else:
             vcs = None
 
-    # make sure files exist and contain version string
-    logger.info("Asserting files {} contain the version string:".format(", ".join([str(f) for f in files])))
+    # make sure files_to_bump exist and contain version string
+    logger.info("Asserting files {} contain the version string:".format(", ".join([str(f) for f in files_to_bump])))
 
-    for f in files:
+    for f in files_to_bump:
         f.should_contain_version(current_version, context)
 
-    # change version string in files
-    for f in files:
+    # change version string in files_to_bump
+    for f in files_to_bump:
         f.replace(current_version, new_version, context, args.dry_run)
 
-    bumpversion.config.save(args, config, config_filename)
+    bumpversion.config.save(args, config)
 
     if not vcs:
         return
@@ -825,7 +824,8 @@ def main(original_args=None):
         vcs.__name__,
     ))
 
-    commit_files = [f.path for f in files]
+    commit_files = [f.path for f in files_to_bump]
+    config_filename = bumpversion.config.get_name(args)
     if bumpversion.config.exists(config_filename):
         commit_files.append(config_filename)
 
