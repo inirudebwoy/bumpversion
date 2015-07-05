@@ -665,17 +665,21 @@ def main(original_args=None):
                          help='Version that needs to be updated', required=False)
     parser2.add_argument('--parse', metavar='REGEX',
                          help='Regex parsing the version string',
-                         default=defaults.get("parse", '(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)'))
+                         default=defaults.get("parse",
+                                              bumpversion.config.DEFAULT_PARSE))
     parser2.add_argument('--serialize', metavar='FORMAT',
                          action=DiscardDefaultIfSpecifiedAppendAction,
                          help='How to format what is parsed back to a version',
-                         default=defaults.get("serialize", [str('{major}.{minor}.{patch}')]))
+                         default=defaults.get("serialize",
+                                              bumpversion.config.DEFAULT_SERIALIZE))
     parser2.add_argument('--search', metavar='SEARCH',
                          help='Template for complete string to search',
-                         default=defaults.get("search", '{current_version}'))
+                         default=defaults.get("search",
+                                              bumpversion.config.DEFAULT_SEARCH))
     parser2.add_argument('--replace', metavar='REPLACE',
                          help='Template for complete string to replace',
-                         default=defaults.get("replace", '{new_version}'))
+                         default=defaults.get("replace",
+                                              bumpversion.config.DEFAULT_REPLACE))
 
     known_args, remaining_argv = parser2.parse_known_args(args)
 

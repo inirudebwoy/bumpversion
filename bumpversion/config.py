@@ -17,7 +17,7 @@ except ImportError:
 import bumpversion
 
 DEFAULT_PARSE = '(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)'
-DEFAULT_VERSION = '{new_version}'
+DEFAULT_REPLACE = '{new_version}'
 DEFAULT_SERIALIZE = [str('{major}.{minor}.{patch}')]
 DEFAULT_SEARCH = '{current_version}'
 
@@ -25,17 +25,8 @@ DEFAULT_SEARCH = '{current_version}'
 def exists(path):
     return os.path.exists(path)
 
-def get_parser():
-    config = RawConfigParser('')
-    # don't transform keys to lowercase (which would be the default)
-    config.optionxform = lambda option: option
-    config.add_section('bumpversion')
-    
 
-    
-def save(filename, context):
-    config = get_parser()
-    
+def save(filename, config, context):
     config.set('bumpversion', 'new_version', context.new_version)
 
     for key, value in config.items('bumpversion'):
@@ -80,9 +71,9 @@ def get_name(context):
         name = '.bumpversion.cfg'
     return name
 
-        
+    
 def load(filename, context, defaults):
-    config = RawConfigParser('')
+    config = RawConfigParser(defaults='')
     # don't transform keys to lowercase (which would be the default)
     config.optionxform = lambda option: option
     config.add_section('bumpversion')
@@ -94,12 +85,8 @@ def load(filename, context, defaults):
 
         bumpversion.logger.info("Reading config file {}:".format(filename))
         bumpversion.logger.info(io.open(filename, 'rt', encoding='utf-8').read())
-
         config.readfp(io.open(filename, 'rt', encoding='utf-8'))
-
-        log_config = StringIO()
-        config.write(log_config)
-
+        
         if 'files' in dict(config.items("bumpversion")):
             warnings.warn(
                 "'files =' configuration is will be deprecated, please use [bumpversion:file:...]",
@@ -159,7 +146,7 @@ def load(filename, context, defaults):
                     section_config['search'] = defaults.get("search", DEFAULT_SEARCH)
 
                 if not 'replace' in section_config:
-                    section_config['replace'] = defaults.get("replace", DEFAULT_VERSION)
+                    section_config['replace'] = defaults.get("replace", DEFAULT_REPLACE)
 
                 files.append(bumpversion.ConfiguredFile(filename,
                                                         bumpversion.VersionConfig(**section_config)))
