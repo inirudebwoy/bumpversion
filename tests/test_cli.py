@@ -42,9 +42,13 @@ xfail_if_no_hg = pytest.mark.xfail(
 def configfile(request):
     return request.param
 
+try:
+    from configparser import RawConfigParser
+except ImportError:
+    from ConfigParser import RawConfigParser
 
 try:
-    bumpversion.RawConfigParser(empty_lines_in_values=False)
+    RawConfigParser(empty_lines_in_values=False)
     using_old_configparser = False
 except TypeError:
     using_old_configparser = True
@@ -1582,7 +1586,7 @@ current_version = 3.2.1
 files = fileX fileY fileZ
 """)
 
-    bumpversion.__warningregistry__.clear()
+    bumpversion.config_utils.__warningregistry__.clear()
     warnings.resetwarnings()
     warnings.simplefilter('always')
     with warnings.catch_warnings(record=True) as recwarn:
@@ -1600,7 +1604,7 @@ def test_deprecation_warning_multiple_files_cli(tmpdir):
     tmpdir.join("fileB").write("1.2.3")
     tmpdir.join("fileC").write("1.2.3")
 
-    bumpversion.__warningregistry__.clear()
+    bumpversion.config_utils.__warningregistry__.clear()
     warnings.resetwarnings()
     warnings.simplefilter('always')
     with warnings.catch_warnings(record=True) as recwarn:
