@@ -16,7 +16,7 @@ from tempfile import NamedTemporaryFile
 import sys
 import codecs
 
-import bumpversion.config_utils
+import bumpversion.config
 
 if sys.version_info[0] == 2:
     sys.stdout = codecs.getwriter('utf-8')(sys.stdout)
@@ -654,7 +654,7 @@ def main(original_args=None):
     if 'current_version' in vcs_info:
         defaults['current_version'] = vcs_info['current_version']
 
-    part_configs, files, config_file, config, defaults = bumpversion.config_utils.config_pre(known_args, defaults)
+    part_configs, files, config_file, config, defaults = bumpversion.config.load(known_args, defaults)
 
     parser2 = argparse.ArgumentParser(prog='bumpversion', add_help=False, parents=[parser1])
     parser2.set_defaults(**defaults)
@@ -803,7 +803,7 @@ def main(original_args=None):
     for f in files:
         f.replace(current_version, new_version, context, args.dry_run)
 
-    bumpversion.config_utils.config_update_post(config, args, config_file)
+    bumpversion.config.save(config, args, config_file)
 
     if not vcs:
         return
@@ -819,7 +819,7 @@ def main(original_args=None):
     ))
 
     commit_files = [f.path for f in files]
-    if bumpversion.config_utils.config_file_exists(config_file):
+    if bumpversion.config.exists(config_file):
         commit_files.append(config_file)
 
     for path in commit_files:

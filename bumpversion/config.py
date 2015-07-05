@@ -16,30 +16,37 @@ except ImportError:
 
 import bumpversion
 
+DEFAULT_PARSE = '(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)'
+DEFAULT_VERSION = '{new_version}'
+DEFAULT_SERIALIZE = [str('{major}.{minor}.{patch}')]
+DEFAULT_SEARCH = '{current_version}'
 
-def config_update_post(config, args, logger_list, config_file_exists, logger,
-                       config_file,):
+
+def exists(path):
+    return os.path.exists(path)
+
+
+def save(config, args, config_file):
     config.set('bumpversion', 'new_version', args.new_version)
 
     for key, value in config.items('bumpversion'):
-        logger_list.info("{}={}".format(key, value))
+        bumpversion.logger_list.info("{}={}".format(key, value))
 
     config.remove_option('bumpversion', 'new_version')
 
     config.set('bumpversion', 'current_version', args.new_version)
 
-    new_config = StringIO()
-
     try:
-        write_to_config_file = (not args.dry_run) and config_file_exists
+        write_to_config_file = (not args.dry_run) and exists(config_file)
 
-        logger.info("{} to config file {}:".format(
+        bumpversion.logger.info("{} to config file {}:".format(
             "Would write" if not write_to_config_file else "Writing",
             config_file,
         ))
 
+        new_config = StringIO()
         config.write(new_config)
-        logger.info(new_config.getvalue())
+        bumpversion.logger.info(new_config.getvalue())
 
         if write_to_config_file:
             with io.open(config_file, 'wb') as f:
@@ -52,14 +59,11 @@ def config_update_post(config, args, logger_list, config_file_exists, logger,
         )
 
 
-def config_pre(known_args, logger, defaults):
+def load(known_args, defaults):
     config = RawConfigParser('')
-
     # don't transform keys to lowercase (which would be the default)
     config.optionxform = lambda option: option
-
     config.add_section('bumpversion')
-
     explicit_config = hasattr(known_args, 'config_file')
 
     if explicit_config:
@@ -70,16 +74,13 @@ def config_pre(known_args, logger, defaults):
     else:
         config_file = '.bumpversion.cfg'
 
-    config_file_exists = os.path.exists(config_file)
-
     part_configs = {}
-
     files = []
 
-    if config_file_exists:
+    if exists(config_file):
 
-        logger.info("Reading config file {}:".format(config_file))
-        logger.info(io.open(config_file, 'rt', encoding='utf-8').read())
+        bumpversion.logger.info("Reading config file {}:".format(config_file))
+        bumpversion.logger.info(io.open(config_file, 'rt', encoding='utf-8').read())
 
         config.readfp(io.open(config_file, 'rt', encoding='utf-8'))
 
@@ -109,14 +110,11 @@ def config_pre(known_args, logger, defaults):
                 pass  # no default value then ;)
 
         for section_name in config.sections():
-
             section_name_match = re.compile("^bumpversion:(file|part):(.+)").match(section_name)
-
             if not section_name_match:
                 continue
 
             section_prefix, section_value = section_name_match.groups()
-
             section_config = dict(config.items(section_name))
 
             if section_prefix == "part":
@@ -139,16 +137,16 @@ def config_pre(known_args, logger, defaults):
                 section_config['part_configs'] = part_configs
 
                 if not 'parse' in section_config:
-                    section_config['parse'] = defaults.get("parse", '(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)')
+                    section_config['parse'] = defaults.get("parse", DEFAULT_PARSE)
 
                 if not 'serialize' in section_config:
-                    section_config['serialize'] = defaults.get('serialize', [str('{major}.{minor}.{patch}')])
+                    section_config['serialize'] = defaults.get('serialize', DEFAULT_SERIALIZE)
 
                 if not 'search' in section_config:
-                    section_config['search'] = defaults.get("search", '{current_version}')
+                    section_config['search'] = defaults.get("search", DEFAULT_SEARCH)
 
                 if not 'replace' in section_config:
-                    section_config['replace'] = defaults.get("replace", '{new_version}')
+                    section_config['replace'] = defaults.get("replace", DEFAULT_VERSION)
 
                 files.append(bumpversion.ConfiguredFile(filename,
                                                         bumpversion.VersionConfig(**section_config)))
@@ -158,6 +156,6 @@ def config_pre(known_args, logger, defaults):
         if explicit_config:
             raise argparse.ArgumentTypeError(message)
         else:
-            logger.info(message)
+            bumpversion.logger.info(message)
 
-    return part_configs, files, config_file_exists, config_file
+    return part_configs, files, config_file, config, defaults

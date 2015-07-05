@@ -1586,7 +1586,7 @@ current_version = 3.2.1
 files = fileX fileY fileZ
 """)
 
-    bumpversion.config_utils.__warningregistry__.clear()
+    bumpversion.config.__warningregistry__.clear()
     warnings.resetwarnings()
     warnings.simplefilter('always')
     with warnings.catch_warnings(record=True) as recwarn:
@@ -1604,7 +1604,7 @@ def test_deprecation_warning_multiple_files_cli(tmpdir):
     tmpdir.join("fileB").write("1.2.3")
     tmpdir.join("fileC").write("1.2.3")
 
-    bumpversion.config_utils.__warningregistry__.clear()
+    bumpversion.config.__warningregistry__.clear()
     warnings.resetwarnings()
     warnings.simplefilter('always')
     with warnings.catch_warnings(record=True) as recwarn:

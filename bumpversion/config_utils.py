@@ -26,7 +26,7 @@ def config_file_exists(path):
     return os.path.exists(path)
 
 
-def config_update_post(config, args, config_file):
+def save(config, args, config_file):
     config.set('bumpversion', 'new_version', args.new_version)
 
     for key, value in config.items('bumpversion'):
@@ -43,7 +43,7 @@ def config_update_post(config, args, config_file):
             "Would write" if not write_to_config_file else "Writing",
             config_file,
         ))
-        
+
         new_config = StringIO()
         config.write(new_config)
         bumpversion.logger.info(new_config.getvalue())
@@ -59,7 +59,7 @@ def config_update_post(config, args, config_file):
         )
 
 
-def config_pre(known_args, defaults):
+def load(known_args, defaults):
     config = RawConfigParser('')
     # don't transform keys to lowercase (which would be the default)
     config.optionxform = lambda option: option
